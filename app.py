@@ -3,7 +3,10 @@ from flask_cors import CORS
 import requests, base64, random, string, os
 
 app = Flask(__name__)
-CORS(app)
+# Enable CORS and allow credentials for sessions
+CORS(app, supports_credentials=True)
+
+# Secret key for Flask sessions
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", ''.join(random.choices(string.ascii_letters + string.digits, k=32)))
 
 # GitHub token stored as Render environment variable
@@ -13,7 +16,7 @@ OWNER = "snowystudios"
 REPO = "saasd"
 BRANCH = "main"
 
-# Admin credentials (store in Render env variables)
+# Admin credentials (env variables)
 ADMIN_USER = os.environ.get("ADMIN_USER")
 ADMIN_PASS = os.environ.get("ADMIN_PASS")
 OWNER_USER = os.environ.get("OWNER_USER")  # Optional owner role
@@ -28,7 +31,7 @@ config = {
 def random_name(length=10):
     return ''.join(random.choices(string.ascii_lowercase + string.digits, k=length))
 
-# Simple login_required decorator
+# Decorator to protect admin routes
 def login_required(func):
     from functools import wraps
     @wraps(func)
@@ -38,6 +41,7 @@ def login_required(func):
         return func(*args, **kwargs)
     return wrapper
 
+# Admin login
 @app.route("/admin/login", methods=["POST"])
 def admin_login():
     data = request.json
@@ -48,15 +52,16 @@ def admin_login():
         session["admin_logged_in"] = True
         session["admin_username"] = username
         return jsonify({"success": True})
-    else:
-        return jsonify({"error": "Invalid credentials"}), 401
+    return jsonify({"error": "Invalid credentials"}), 401
 
+# Admin logout
 @app.route("/admin/logout", methods=["POST"])
 @login_required
 def admin_logout():
     session.clear()
     return jsonify({"success": True})
 
+# Get or update config
 @app.route("/admin/config", methods=["GET", "POST"])
 @login_required
 def admin_config():
@@ -75,6 +80,7 @@ def admin_config():
     else:
         return jsonify(config)
 
+# Generate Lua files
 @app.route("/generate", methods=["POST"])
 def generate():
     try:
